@@ -35,10 +35,10 @@ public class MultiDbTransactionConfiguration {
     }
 
     @Bean(
-            name = {"txManager"}
+            name = {"jtaTxManager"}
     )
     @DependsOn({"userTransaction", "atomikosTransactionManager"})
-    public PlatformTransactionManager transactionManager() throws Throwable {
+    public JtaTransactionManager transactionManager() throws Throwable {
         UserTransaction userTransaction = this.userTransaction();
         TransactionManager atomikosTransactionManager = this.atomikosTransactionManager();
         return new JtaTransactionManager(userTransaction,atomikosTransactionManager);

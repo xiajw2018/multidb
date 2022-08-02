@@ -46,14 +46,14 @@ public class MultiDatasourceRegister implements EnvironmentAware, ImportBeanDefi
         try{
             multiDatasources = this.binder.bind("spring.datasource.druid",Map.class).get();
         }catch (NoSuchElementException e){
-            logger.error("Failed to configure fastDep DataSource: 'xiajw.datasource' attribute is not specified and no embedded datasource could be configured.");
+            logger.error("Failed to configure fastDep DataSource: 'spring.datasource.druid' attribute is not specified and no embedded datasource could be configured.");
             return;
         }
 
         Set<String> keySet = multiDatasources.keySet();
         for(String key:keySet){
             DruidXADataSource druidDataSource = this.binder.bind("spring.datasource.druid."+key,DruidXADataSource.class).get();
-            List<String> xaDataSource = Arrays.asList("oracle","mysql","postgresql");
+            List<String> xaDataSource = Arrays.asList("oracle","mysql","mariadb","postgresql","h2","jtds");
             Supplier datasourceSupplier;
             if(xaDataSource.contains(druidDataSource.getDbType())){
                 datasourceSupplier = () ->{
@@ -86,7 +86,7 @@ public class MultiDatasourceRegister implements EnvironmentAware, ImportBeanDefi
             javax.sql.DataSource dataSource = (javax.sql.DataSource) datasourceSupplier.get();
             BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(javax.sql.DataSource.class,datasourceSupplier);
             AbstractBeanDefinition dataSourceBean = builder.getRawBeanDefinition();
-            dataSourceBean.setDependsOn("txManager");
+            //dataSourceBean.setDependsOn("txManager");
             registry.registerBeanDefinition(key+"Datasource",dataSourceBean);
             Supplier<SqlSessionFactory> sqlSessionFactorySupplier = () -> {
                 SqlSessionFactory registerSqlSessionFactory = (SqlSessionFactory)registerBean.get(key+"SqlSessionFactory");
@@ -124,9 +124,9 @@ public class MultiDatasourceRegister implements EnvironmentAware, ImportBeanDefi
             ClassPathMapperScanner scanner = new ClassPathMapperScanner(registry);
             scanner.setSqlSessionTemplateBeanName(key+"SqlSessionTemplate");
             scanner.registerFilters();
-            String mapperProperty = this.env.getProperty("xiajw.datasource."+key+".mapper");
+            String mapperProperty = this.env.getProperty("spring.datasource.druid."+key+".mapper");
             if(mapperProperty == null){
-                logger.error("Failed to configure fastDep DataSource: fastdep.datasource." + key + ".mapper cannot be null.");
+                logger.error("Failed to configure DataSource: spring.datasource.druid." + key + ".mapper cannot be null.");
                 return;
             }
             scanner.doScan(mapperProperty);

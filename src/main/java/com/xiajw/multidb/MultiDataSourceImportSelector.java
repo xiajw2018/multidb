@@ -20,7 +20,7 @@ public class MultiDataSourceImportSelector implements ImportSelector, BeanClassL
         AnnotationAttributes attributes = AnnotationAttributes
                 .fromMap(importingClassMetadata.getAnnotationAttributes(EnableXiajwMultiDatasource.class.getName(), true));
         boolean autoRegister = attributes.getBoolean("autoRegister");
-        String[] imports = null;
+        String[] imports = factories.toArray(new String[0]);
         if(autoRegister){
             List<String> importList = new ArrayList<>(factories);
             importList.add("com.xiajw.multidb.MultiDataSourceConfiguration");
