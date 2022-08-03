@@ -5,6 +5,7 @@ import com.alibaba.druid.pool.xa.DruidXADataSource;
 import com.atomikos.jdbc.AtomikosDataSourceBean;
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.SqlSessionFactory;
+import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.mybatis.spring.mapper.ClassPathMapperScanner;
@@ -22,6 +23,9 @@ import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.type.AnnotationMetadata;
+import org.springframework.jdbc.support.JdbcTransactionManager;
+
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -54,8 +58,19 @@ public class MultiDatasourceRegister implements EnvironmentAware, ImportBeanDefi
         for(String key:keySet){
             DruidXADataSource druidDataSource = this.binder.bind("spring.datasource.druid."+key,DruidXADataSource.class).get();
             List<String> xaDataSource = Arrays.asList("oracle","mysql","mariadb","postgresql","h2","jtds");
+            boolean isXaDataSource = false;
+            if(druidDataSource.getDbType() != null && xaDataSource.contains(druidDataSource.getDbType())){
+                isXaDataSource = true;
+            }else{
+                for(String type:xaDataSource){
+                    if(druidDataSource.getDriverClassName().contains(type)){
+                        isXaDataSource = true;
+                        break;
+                    }
+                }
+            }
             Supplier datasourceSupplier;
-            if(xaDataSource.contains(druidDataSource.getDbType())){
+            if(isXaDataSource){
                 datasourceSupplier = () ->{
                     AtomikosDataSourceBean registerDataSource = (AtomikosDataSourceBean)registerBean.get(key+"Datasource");
                     if(registerDataSource == null){
@@ -68,6 +83,12 @@ public class MultiDatasourceRegister implements EnvironmentAware, ImportBeanDefi
                         registerDataSource.setBorrowConnectionTimeout((int)druidDataSource.getTimeBetweenEvictionRunsMillis());
                         registerDataSource.setMaxIdleTime((int)druidDataSource.getMaxEvictableIdleTimeMillis());
                         registerDataSource.setTestQuery(druidDataSource.getValidationQuery());
+                        registerDataSource.setReapTimeout(druidDataSource.getQueryTimeout());
+                        try {
+                            registerDataSource.setLoginTimeout(druidDataSource.getLoginTimeout());
+                        } catch (SQLException e) {
+                            logger.error("set atomikos datasource login-timeout error!");
+                        }
                         registerBean.put(key+"Datasource",registerDataSource);
                     }
                     return registerDataSource;
@@ -86,7 +107,6 @@ public class MultiDatasourceRegister implements EnvironmentAware, ImportBeanDefi
             javax.sql.DataSource dataSource = (javax.sql.DataSource) datasourceSupplier.get();
             BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(javax.sql.DataSource.class,datasourceSupplier);
             AbstractBeanDefinition dataSourceBean = builder.getRawBeanDefinition();
-            //dataSourceBean.setDependsOn("txManager");
             registry.registerBeanDefinition(key+"Datasource",dataSourceBean);
             Supplier<SqlSessionFactory> sqlSessionFactorySupplier = () -> {
                 SqlSessionFactory registerSqlSessionFactory = (SqlSessionFactory)registerBean.get(key+"SqlSessionFactory");
