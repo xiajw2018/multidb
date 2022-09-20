@@ -21,7 +21,7 @@
 ## 如何使用分布式事务
 通过@Transactional注解标注分布式事务管理器
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(transactionManager = "jtaTxManager",rollbackFor = Exception.class)
     
 ## 实现原理
     @AutoConfigureBefore({DataSourceAutoConfiguration.class, DruidDataSourceAutoConfigure.class})
